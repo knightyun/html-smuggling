@@ -152,7 +152,7 @@
                     const arrStr = new Uint8Array(data).toString();
                     const html = getHtmlString(arrStr, name, type, template);
 
-                    download(`data:text/html;base64,${btoa(html)}`, 'html.html');
+                    download(`data:text/html,${encodeURIComponent(html)}`, 'html.html');
                 });
             });
 
@@ -182,7 +182,7 @@
                     const arrStr = new Uint8Array(data).toString();
                     const svg = getSvgString(arrStr, name, type, template);
 
-                    download(`data:image/svg+xml;base64,${btoa(svg)}`, 'svg.svg', type);
+                    download(`data:image/svg+xml,${encodeURIComponent(svg)}`, 'svg.svg', type);
                 });
             });
 
