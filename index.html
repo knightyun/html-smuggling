@@ -99,7 +99,7 @@
 
             const html = new DOMParser().parseFromString(template, 'text/html');
             const s = document.createElement('script');
-            s.src = `data:application/javascript;base64,${btoa(jsStr)}`;
+            s.src = `data:application/javascript,${encodeURIComponent(jsStr)}`;
             html.body.appendChild(s);
 
             return html.documentElement.outerHTML;
@@ -123,7 +123,7 @@
             const svg = new DOMParser().parseFromString(template, "text/xml");
             const s = svg.createElement('script');
             svg.documentElement.appendChild(s);
-            s.outerHTML = `<script type="text/javascript"><![CDATA[eval(atob("${btoa(jsStr)}"));]]><\/script>`;
+            s.outerHTML = `<script type="text/javascript"><![CDATA[eval(decodeURIComponent(atob("${btoa(encodeURIComponent(jsStr))}")));]]><\/script>`;
 
             return svg.documentElement.outerHTML;
         }
